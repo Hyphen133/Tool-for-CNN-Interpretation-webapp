@@ -1,0 +1,23 @@
+@Controller
+@RequestMapping("/upload")
+public class FileUploadController {
+  public static final String TargetFolder = "d:/filesUploaded/";
+    .............
+  @PostMapping
+  public String handlePostRequest(@RequestPart("user-file") Part part,
+                                  Model model) throws IOException {
+
+      String name = extractFileName(part);
+      InputStream inputStream = part.getInputStream();
+      Files.copy(inputStream, Paths.get(TargetFolder + name), StandardCopyOption.REPLACE_EXISTING);
+      model.addAttribute("msg", "File has been uploaded:  " + name);
+      return "response";
+  }
+
+  private String extractFileName(Part part) {
+      String disposition = part.getHeader("Content-Disposition");
+      String fileName = disposition
+              .replaceFirst("(?i)^.*filename=\"?([^\"]+)\"?.*$", "$1");
+      return fileName;
+  }
+}

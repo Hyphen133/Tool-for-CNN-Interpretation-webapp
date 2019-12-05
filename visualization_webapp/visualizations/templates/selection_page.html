@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+<h2>Upload your file here</h2>
+
+<form method="post" enctype="multipart/form-data">
+    {% csrf_token %}
+    <input type="file" name="code">
+
+    {% for name in plugin_names %}
+    <br>
+    <input name="selected_plugins" type="checkbox" value={{ name }}>{{ name }}</input>
+    {% endfor %}
+    <br>
+
+    <button type="submit">Submit</button>
+</form>
+
+
+
+</body>
+</html>

@@ -5,18 +5,30 @@
     <title>Title</title>
 </head>
 <body>
-<h2>Upload your file here</h2>
+
 
 <form method="post" enctype="multipart/form-data">
-    {% csrf_token %}
-    <input type="file" name="code">
+    <div>
+        <h2>Upload your file here</h2>
+        {% csrf_token %}
+        <input type="file" name="code">
+    </div>
 
-    {% for name in plugin_names %}
-    <br>
-    <input name="selected_plugins" type="checkbox" value={{ name }}>{{ name }}</input>
-    {% endfor %}
-    <br>
 
+    <div>
+        <h2>Select Plugins</h2>
+        {% for name in plugin_names %}
+        <br>
+        <input name="selected_plugins" type="checkbox" value={{ name }}>{{ name }}</input>
+        {% endfor %}
+        <br>
+    </div>
+
+    <div>
+        <h2>Put test image</h2>
+        <input type="file" name="image">
+    </div>
+    <br>
     <button type="submit">Submit</button>
 </form>
 

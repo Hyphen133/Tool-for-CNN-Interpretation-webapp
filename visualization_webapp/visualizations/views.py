@@ -1,6 +1,6 @@
 import subprocess
-
 import torch
+from PIL import Image
 from django.core.files.storage import default_storage
 from django.shortcuts import render, redirect
 from torch_model_loading import ModelLoader
@@ -17,7 +17,12 @@ def index(request):
 def selection(request):
     if request.method == 'POST':
         print("Inside selection view")
+
+        ############     Loading files and saving files
         uploaded_file = request.FILES['code']
+        uploaded_image = request.FILES['image']
+        img = Image.open(uploaded_image)
+        img.save('./static/image.jpg')
 
         for l in uploaded_file.readlines():
             file_lines.append(l)
@@ -31,10 +36,12 @@ def selection(request):
         #################   Loading model from file
         model_loader = ModelLoader()
         model = model_loader.load_model_from_external_file(file_name)
+        input_shape = model_loader.load_input_shape_from_external_file(file_name)
         print(model)
 
         #################   Converting model to graph
-        test_input = torch.rand(1, 3, 32, 32)
+
+        test_input = torch.rand(1, input_shape[0], input_shape[1], input_shape[2])
         y = model.forward(test_input)
         graph_extractor = GraphExtractor()
         parent_node = FunctionNode(y.grad_fn.__class__.__name__)

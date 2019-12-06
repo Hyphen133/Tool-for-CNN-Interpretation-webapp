@@ -20,6 +20,8 @@ from django.conf import settings
 from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 
 urlpatterns = [
+    path('', include('visualizations.urls')),
     path('visualizations/', include('visualizations.urls')),
-    path('admin/', admin.site.urls),
+    path('node/<id>', include('visualizations.urls')),
+    path('selection/', include('visualizations.urls')),
 ]

@@ -11,6 +11,10 @@ selected_plugins = []
 file_lines = []
 
 def index(request):
+    plugin_names = ['feature_maps', 'gradient_maps', 'filters']
+    return render(request, 'hello.html', context={'plugin_names': plugin_names})
+
+def selection(request):
     if request.method == 'POST':
         print("Inside selection view")
         uploaded_file = request.FILES['code']
@@ -36,7 +40,7 @@ def index(request):
         parent_node = FunctionNode(y.grad_fn.__class__.__name__)
         graph_extractor.create_graph_and_associate_with_mapping(parent_node, y.grad_fn.next_functions, model, y.grad_fn)
 
-        link_attacher = LinkAttacher("www.google.com")
+        link_attacher = LinkAttacher("/node")
         coloring_tool = NodeColoringTool("blue", "lightyellow")
         graph_printer = GraphPrinter(link_attacher, coloring_tool)
         dot_text = graph_printer.convert_graph_to_dot(parent_node)
@@ -45,11 +49,6 @@ def index(request):
             f.writelines(dot_text)
 
         subprocess.check_call("dot -Tsvg graph.dot -o ./static/output_graph.svg")
-
-
-        # print(selected_plugins)
-        # print(request.get_full_path)
-        # return redirect('/visualizations/visualization')
         return redirect('/static/output_graph.svg')
 
     plugin_names = ['feature_maps', 'gradient_maps', 'filters']
@@ -59,11 +58,8 @@ def index(request):
 
 def visualization_page(request):
     print('Inside Visualization page')
-    # file = default_storage.open('model.py')
-    # print(len(file.readlines()))
-    # print(file.readlines())
-
-    print(file_lines)
-    print(selected_plugins)
-
     return render(request, 'graph_visualization_page.html', context={})
+
+
+def node_visualization_page(request,id=0):
+    return render(request, 'node_visualization_page.html', context={'id' : id})

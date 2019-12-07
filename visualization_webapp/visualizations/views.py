@@ -5,7 +5,7 @@ from django.core.files.storage import default_storage
 from django.shortcuts import render, redirect
 from plugins_management import get_plugin_repository, PluginSelector
 from torch_model_loading import ModelLoader
-from visualization_core import GraphExtractor, FunctionNode, GraphVisualizationAttacher
+from visualization_core import GraphExtractor, FunctionNode, GraphVisualizationAttacher, GraphUtils
 from visualization_printing import LinkAttacher, NodeColoringTool, GraphPrinter
 from visualization_utils.image_processing import ImageProcessing
 
@@ -65,8 +65,7 @@ def selection(request):
 
         for plugin in selected_plugins:
             #TODO modify for nongrapgh ones
-            GraphVisualizationAttacher.attach_visualizations_to_graph(parent_node, plugin.get_module_visualizations_list_map(model, image_tensor))
-
+            GraphVisualizationAttacher.attach_visualizations_to_graph(parent_node, plugin.name, plugin.get_module_visualizations_list_map(model, image_tensor))
 
         return redirect('/static/output_graph.svg')
 
@@ -86,6 +85,7 @@ def node_visualization_page(request,id=0):
     #flatten and load by id
     global parent_node
 
+    node = GraphUtils.find_node_by_id(parent_node, id)
 
 
 

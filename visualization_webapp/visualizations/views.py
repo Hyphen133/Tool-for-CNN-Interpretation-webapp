@@ -109,8 +109,9 @@ def node_visualization_page(request, id=0):
 
     # Save all visulizations with naming conventions: {node_id}_{plugin_name}_{map_index} in /static/visualizations
     for visualizations_maps in node.get_visualization_maps():
-        for i,map in enumerate(visualizations_maps.get_map_list()):
+        for i, map in enumerate(visualizations_maps.get_map_list()):
             img = transforms.ToPILImage()(map).convert('LA')
-            img.save('./static/visualizations/'+ str(node.id) + "_" + visualizations_maps.group_name + "_" + str(i+1)+ '.png')
+            img.save('./static/visualizations/' + str(node.id) + "_" + visualizations_maps.group_name + "_" + str(
+                i + 1) + '.png')
 
     return render(request, 'node_visualization_page.html', context={'id': id})

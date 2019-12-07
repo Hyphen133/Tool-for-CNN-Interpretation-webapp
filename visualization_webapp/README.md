@@ -12,3 +12,6 @@ This will be solved by dot tool
 <div>dot -Tsvg in.txt -o out.svg </div>
 
 Where in.txt is the dot file
+
+
+Requires: torch, torchvision, pillow, matplotlib, scikit-image

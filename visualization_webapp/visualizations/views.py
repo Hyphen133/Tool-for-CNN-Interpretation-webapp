@@ -5,37 +5,41 @@ from django.core.files.storage import default_storage
 from django.shortcuts import render, redirect
 from plugins_management import get_plugin_repository, PluginSelector
 from torch_model_loading import ModelLoader
+from torchvision import transforms
 from visualization_core import GraphExtractor, FunctionNode, GraphVisualizationAttacher, GraphUtils
 from visualization_printing import LinkAttacher, NodeColoringTool, GraphPrinter
+from visualization_printing.maps_printer import save_tensor_as_image
 from visualization_utils.image_processing import ImageProcessing
 
 file_lines = []
 parent_node = None
+selected_plugin_names = None
 
 
 def index(request):
     plugin_names = ['feature_maps', 'gradient_maps', 'filters']
-    links = [[(1,"https://granty.pl/wp-content/uploads/2017/03/ohio-114098_1920-600x400.jpg"),
-              (2,"https://multidom.pl/thumbs/fit-600x400/2015-10::1444833334-17.jpg"),
-              (3,"https://esero.kopernik.org.pl/wp-content/uploads/2019/05/slajder_2_galaktyka_kobiet-600x400.jpg"),
+    links = [[(1, "https://granty.pl/wp-content/uploads/2017/03/ohio-114098_1920-600x400.jpg"),
+              (2, "https://multidom.pl/thumbs/fit-600x400/2015-10::1444833334-17.jpg"),
+              (3, "https://esero.kopernik.org.pl/wp-content/uploads/2019/05/slajder_2_galaktyka_kobiet-600x400.jpg"),
               (4, "http://www.informationclearinghouse.info/Nuclear-Bomb-New-York-Public-Domain-600x400.jpg"),
               (5, "https://upload.wikimedia.org/wikipedia/commons/6/69/600x400_kastra.jpg"),
               (6, "https://www.ledhut.co.uk/blog/wp-content/uploads/2015/09/Glasgow-600x400.jpg")
               ],
-             [(7,"http://www.informationclearinghouse.info/Nuclear-Bomb-New-York-Public-Domain-600x400.jpg"),
-              (8,"https://upload.wikimedia.org/wikipedia/commons/6/69/600x400_kastra.jpg"),
-              (9,"https://www.ledhut.co.uk/blog/wp-content/uploads/2015/09/Glasgow-600x400.jpg"),
+             [(7, "http://www.informationclearinghouse.info/Nuclear-Bomb-New-York-Public-Domain-600x400.jpg"),
+              (8, "https://upload.wikimedia.org/wikipedia/commons/6/69/600x400_kastra.jpg"),
+              (9, "https://www.ledhut.co.uk/blog/wp-content/uploads/2015/09/Glasgow-600x400.jpg"),
               (10, "http://www.informationclearinghouse.info/Nuclear-Bomb-New-York-Public-Domain-600x400.jpg"),
               (11, "https://upload.wikimedia.org/wikipedia/commons/6/69/600x400_kastra.jpg"),
               (12, "https://www.ledhut.co.uk/blog/wp-content/uploads/2015/09/Glasgow-600x400.jpg")
               ]]
 
-
-    return render(request, 'hello.html', context={'plugin_names': plugin_names, "links": links, "links_count" : sum([len(x) for x in links]),})
+    return render(request, 'hello.html',
+                  context={'plugin_names': plugin_names, "links": links, "links_count": sum([len(x) for x in links]), })
 
 
 def selection(request):
     global parent_node
+    global selected_plugin_names
 
     if request.method == 'POST':
         print("Inside selection view")
@@ -101,7 +105,12 @@ def visualization_page(request):
 def node_visualization_page(request, id=0):
     # flatten and load by id
     global parent_node
-
     node = GraphUtils.find_node_by_id(parent_node, id)
+
+    # Save all visulizations with naming conventions: {node_id}_{plugin_name}_{map_index} in /static/visualizations
+    for visualizations_maps in node.get_visualization_maps():
+        for i,map in enumerate(visualizations_maps.get_map_list()):
+            img = transforms.ToPILImage()(map).convert('LA')
+            img.save('./static/visualizations/'+ str(node.id) + "_" + visualizations_maps.group_name + "_" + str(i+1)+ '.png')
 
     return render(request, 'node_visualization_page.html', context={'id': id})

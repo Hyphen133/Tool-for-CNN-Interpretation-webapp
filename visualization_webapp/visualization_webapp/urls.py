@@ -22,6 +22,6 @@ from django.contrib.staticfiles.urls import staticfiles_urlpatterns
 urlpatterns = [
     path('', include('visualizations.urls')),
     path('visualizations/', include('visualizations.urls')),
-    path('node/<id>', include('visualizations.urls')),
+    path('node/<id>/<plugin_name>', include('visualizations.urls')),
     path('selection/', include('visualizations.urls')),
 ]

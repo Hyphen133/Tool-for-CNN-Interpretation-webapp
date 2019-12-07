@@ -3,18 +3,22 @@ import torch
 from PIL import Image
 from django.core.files.storage import default_storage
 from django.shortcuts import render, redirect
+from plugins_management import get_plugin_repository, PluginSelector
 from torch_model_loading import ModelLoader
-from visualization_core import GraphExtractor, FunctionNode
+from visualization_core import GraphExtractor, FunctionNode, GraphVisualizationAttacher
 from visualization_printing import LinkAttacher, NodeColoringTool, GraphPrinter
+from visualization_utils.image_processing import ImageProcessing
 
-selected_plugins = []
 file_lines = []
+parent_node = None
 
 def index(request):
     plugin_names = ['feature_maps', 'gradient_maps', 'filters']
     return render(request, 'hello.html', context={'plugin_names': plugin_names})
 
 def selection(request):
+    global parent_node
+
     if request.method == 'POST':
         print("Inside selection view")
 
@@ -27,9 +31,6 @@ def selection(request):
         for l in uploaded_file.readlines():
             file_lines.append(l)
 
-        plugins = request.POST.getlist('selected_plugins')
-        for p in plugins:
-            selected_plugins.append(p)
 
         file_name = default_storage.save('model.py', uploaded_file)
 
@@ -40,7 +41,6 @@ def selection(request):
         print(model)
 
         #################   Converting model to graph
-
         test_input = torch.rand(1, input_shape[0], input_shape[1], input_shape[2])
         y = model.forward(test_input)
         graph_extractor = GraphExtractor()
@@ -56,9 +56,23 @@ def selection(request):
             f.writelines(dot_text)
 
         subprocess.check_call("dot -Tsvg graph.dot -o ./static/output_graph.svg")
+
+        #############   Attach visualization by selected nodes
+        image_tensor = ImageProcessing.pil_img_to_tensor_of_with_size(img, input_shape).unsqueeze(0)
+
+        selected_plugin_names = request.POST.getlist('selected_plugins')
+        selected_plugins = PluginSelector.get_selected_plugins(selected_plugin_names)
+
+        for plugin in selected_plugins:
+            #TODO modify for nongrapgh ones
+            GraphVisualizationAttacher.attach_visualizations_to_graph(parent_node, plugin.get_module_visualizations_list_map(model, image_tensor))
+
+
         return redirect('/static/output_graph.svg')
 
-    plugin_names = ['feature_maps', 'gradient_maps', 'filters']
+
+
+    plugin_names = PluginSelector.get_all_plugin_names()
 
     return render(request, 'selection_page.html', context={'plugin_names': plugin_names})
 
@@ -69,4 +83,10 @@ def visualization_page(request):
 
 
 def node_visualization_page(request,id=0):
+    #flatten and load by id
+    global parent_node
+
+
+
+
     return render(request, 'node_visualization_page.html', context={'id' : id})

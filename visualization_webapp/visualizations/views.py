@@ -12,9 +12,27 @@ from visualization_utils.image_processing import ImageProcessing
 file_lines = []
 parent_node = None
 
+
 def index(request):
     plugin_names = ['feature_maps', 'gradient_maps', 'filters']
-    return render(request, 'hello.html', context={'plugin_names': plugin_names})
+    links = [[(1,"https://granty.pl/wp-content/uploads/2017/03/ohio-114098_1920-600x400.jpg"),
+              (2,"https://multidom.pl/thumbs/fit-600x400/2015-10::1444833334-17.jpg"),
+              (3,"https://esero.kopernik.org.pl/wp-content/uploads/2019/05/slajder_2_galaktyka_kobiet-600x400.jpg"),
+              (4, "http://www.informationclearinghouse.info/Nuclear-Bomb-New-York-Public-Domain-600x400.jpg"),
+              (5, "https://upload.wikimedia.org/wikipedia/commons/6/69/600x400_kastra.jpg"),
+              (6, "https://www.ledhut.co.uk/blog/wp-content/uploads/2015/09/Glasgow-600x400.jpg")
+              ],
+             [(7,"http://www.informationclearinghouse.info/Nuclear-Bomb-New-York-Public-Domain-600x400.jpg"),
+              (8,"https://upload.wikimedia.org/wikipedia/commons/6/69/600x400_kastra.jpg"),
+              (9,"https://www.ledhut.co.uk/blog/wp-content/uploads/2015/09/Glasgow-600x400.jpg"),
+              (10, "http://www.informationclearinghouse.info/Nuclear-Bomb-New-York-Public-Domain-600x400.jpg"),
+              (11, "https://upload.wikimedia.org/wikipedia/commons/6/69/600x400_kastra.jpg"),
+              (12, "https://www.ledhut.co.uk/blog/wp-content/uploads/2015/09/Glasgow-600x400.jpg")
+              ]]
+
+
+    return render(request, 'hello.html', context={'plugin_names': plugin_names, "links": links, "links_count" : sum([len(x) for x in links]),})
+
 
 def selection(request):
     global parent_node
@@ -30,7 +48,6 @@ def selection(request):
 
         for l in uploaded_file.readlines():
             file_lines.append(l)
-
 
         file_name = default_storage.save('model.py', uploaded_file)
 
@@ -64,12 +81,12 @@ def selection(request):
         selected_plugins = PluginSelector.get_selected_plugins(selected_plugin_names)
 
         for plugin in selected_plugins:
-            #TODO modify for nongrapgh ones
-            GraphVisualizationAttacher.attach_visualizations_to_graph(parent_node, plugin.name, plugin.get_module_visualizations_list_map(model, image_tensor))
+            # TODO modify for nongrapgh ones
+            GraphVisualizationAttacher.attach_visualizations_to_graph(parent_node, plugin.name,
+                                                                      plugin.get_module_visualizations_list_map(model,
+                                                                                                                image_tensor))
 
         return redirect('/static/output_graph.svg')
-
-
 
     plugin_names = PluginSelector.get_all_plugin_names()
 
@@ -81,12 +98,10 @@ def visualization_page(request):
     return render(request, 'graph_visualization_page.html', context={})
 
 
-def node_visualization_page(request,id=0):
-    #flatten and load by id
+def node_visualization_page(request, id=0):
+    # flatten and load by id
     global parent_node
 
     node = GraphUtils.find_node_by_id(parent_node, id)
 
-
-
-    return render(request, 'node_visualization_page.html', context={'id' : id})
+    return render(request, 'node_visualization_page.html', context={'id': id})

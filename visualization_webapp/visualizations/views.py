@@ -1,4 +1,7 @@
+import os
 import subprocess
+
+import math
 import torch
 from PIL import Image
 from django.core.files.storage import default_storage
@@ -94,6 +97,10 @@ def node_visualization_page(request, id=0, plugin_name=''):
 
     node = GraphUtils.find_node_by_id(parent_node, id)
 
+    #Clear all past visualizations
+    for f in os.listdir('./static/visualizations/'):
+        os.remove(os.path.join('./static/visualizations/', f))
+
     # Save all visulizations with naming conventions: {node_id}_{plugin_name}_{map_index} in /static/visualizations
     for visualizations_maps in node.get_visualization_maps():
         for i, map in enumerate(visualizations_maps.get_map_list()):
@@ -101,22 +108,24 @@ def node_visualization_page(request, id=0, plugin_name=''):
             img.save('./static/visualizations/' + str(node.id) + "_" + visualizations_maps.group_name + "_" + str(
                 i + 1) + '.png')
 
-    map_links = [[(1, "https://granty.pl/wp-content/uploads/2017/03/ohio-114098_1920-600x400.jpg"),
-                  (2, "https://multidom.pl/thumbs/fit-600x400/2015-10::1444833334-17.jpg"),
-                  (
-                      3,
-                      "https://esero.kopernik.org.pl/wp-content/uploads/2019/05/slajder_2_galaktyka_kobiet-600x400.jpg"),
-                  (4, "http://www.informationclearinghouse.info/Nuclear-Bomb-New-York-Public-Domain-600x400.jpg"),
-                  (5, "https://upload.wikimedia.org/wikipedia/commons/6/69/600x400_kastra.jpg"),
-                  (6, "https://www.ledhut.co.uk/blog/wp-content/uploads/2015/09/Glasgow-600x400.jpg")
-                  ],
-                 [(7, "http://www.informationclearinghouse.info/Nuclear-Bomb-New-York-Public-Domain-600x400.jpg"),
-                  (8, "https://upload.wikimedia.org/wikipedia/commons/6/69/600x400_kastra.jpg"),
-                  (9, "https://www.ledhut.co.uk/blog/wp-content/uploads/2015/09/Glasgow-600x400.jpg"),
-                  (10, "http://www.informationclearinghouse.info/Nuclear-Bomb-New-York-Public-Domain-600x400.jpg"),
-                  (11, "https://upload.wikimedia.org/wikipedia/commons/6/69/600x400_kastra.jpg"),
-                  (12, "https://www.ledhut.co.uk/blog/wp-content/uploads/2015/09/Glasgow-600x400.jpg")
-                  ]]
+    #Load all files for visualizations by name convention
+    files = []
+    # r=root, d=directories, f = files'
+    for r, d, f in os.walk('./static/visualizations'):
+        for file in f:
+            if file.split('_')[0] == str(node.id) and '_'.join(file.split('_')[1:-1]) == plugin_name:
+                #Remove first dot with 1: cause directory changes
+                files.append(os.path.join(r, file).replace(os.sep, '/')[1:])
+
+    #Divide into map_links with format [nx[6x(id,link)]]
+    map_links = []
+    for i in range(math.ceil(len(files)/6.0)):
+        map_links.append([])
+        for j in range(6):
+            index = 6*i+j
+            if index < len(files):
+                map_links[i].append((index,files[index]))
+
 
     return render(request, 'node_visualization_page.html',
                   context={'current_plugin_name': plugin_name, 'node_id': node.id,

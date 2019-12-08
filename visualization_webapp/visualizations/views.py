@@ -124,7 +124,7 @@ def node_visualization_page(request, id=0, plugin_name=''):
         for j in range(6):
             index = 6*i+j
             if index < len(files):
-                map_links[i].append((index,files[index]))
+                map_links[i].append((index+1,files[index]))
 
 
     return render(request, 'node_visualization_page.html',

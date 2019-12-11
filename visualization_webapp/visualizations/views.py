@@ -10,13 +10,16 @@ from plugins_management import get_plugin_repository, PluginSelector
 from torch_model_loading import ModelLoader
 from torchvision import transforms
 from visualization_core import GraphExtractor, FunctionNode, GraphVisualizationAttacher, GraphUtils
+from visualization_core.interfaces.VisualizationTechnique import PrintingMode, GraphVisualizationTechnique, \
+    NonGraphVisualizationTechnique
 from visualization_printing import LinkAttacher, NodeColoringTool, GraphPrinter
-from visualization_printing.maps_printer import save_tensor_as_image
+from visualization_printing.maps_printer import save_tensor_as_image, save_tensor_with_heatmap
 from visualization_utils.image_processing import ImageProcessing
 
 file_lines = []
 parent_node = None
 selected_plugin_names = None
+class_index = None
 
 
 def index(request):
@@ -26,10 +29,11 @@ def index(request):
 def selection(request):
     global parent_node
     global selected_plugin_names
+    global class_index
 
     if request.method == 'POST':
         print("Inside selection view")
-
+        class_index = int(request.POST.get("class_index", ""))
         ############     Loading files and saving files
         uploaded_file = request.FILES['code']
         uploaded_image = request.FILES['image']
@@ -74,13 +78,23 @@ def selection(request):
             # TODO modify for nongrapgh ones
             GraphVisualizationAttacher.attach_visualizations_to_graph(parent_node, plugin.name,
                                                                       plugin.get_module_visualizations_list_map(model,
-                                                                                                                image_tensor))
+                                                                                                                image_tensor,
+                                                                                                                convert_class_index_to_one_hot_vector(
+                                                                                                                    y,
+                                                                                                                    class_index)))
 
-        return redirect('/static/output_graph.svg')
+        # return redirect('/static/output_graph.svg')
+        return render(request, 'graph_visualization_page.html')
 
     plugin_names = PluginSelector.get_all_plugin_names()
 
     return render(request, 'selection_page.html', context={'plugin_names': plugin_names})
+
+
+def convert_class_index_to_one_hot_vector(model_output, class_index):
+    one_hot_output = torch.FloatTensor(1, model_output.size()[-1]).zero_()
+    one_hot_output[0][class_index] = 1
+    return one_hot_output
 
 
 def visualization_page(request):
@@ -91,41 +105,56 @@ def visualization_page(request):
 def node_visualization_page(request, id=0, plugin_name=''):
     global selected_plugin_names
     global parent_node
+    input_image = Image.open(open('./static/image.jpg', 'rb'))
 
     if plugin_name == '':
         plugin_name = selected_plugin_names[0]
 
     node = GraphUtils.find_node_by_id(parent_node, id)
 
-    #Clear all past visualizations
+    # Clear all past visualizations
     for f in os.listdir('./static/visualizations/'):
         os.remove(os.path.join('./static/visualizations/', f))
 
-    # Save all visulizations with naming conventions: {node_id}_{plugin_name}_{map_index} in /static/visualizations
-    for visualizations_maps in node.get_visualization_maps():
-        for i, map in enumerate(visualizations_maps.get_map_list()):
-            img = transforms.ToPILImage()(map).convert('LA')
-            img.save('./static/visualizations/' + str(node.id) + "_" + visualizations_maps.group_name + "_" + str(
-                i + 1) + '.png')
 
-    #Load all files for visualizations by name convention
+
+    # Save all visulizations for given plugin with naming conventions: {node_id}_{plugin_name}_{map_index} in /static/visualizations
+    plugin = PluginSelector.get_selected_plugins([plugin_name])[0]
+    visualizations_maps = [maps for maps in node.get_visualization_maps() if maps.group_name == plugin_name][0]
+
+    if issubclass(plugin.__class__, GraphVisualizationTechnique):
+        for i, map in enumerate(visualizations_maps.get_map_list()):
+
+            mode = plugin.get_printing_mode()
+            target_filepath = './static/visualizations/' + str(
+                node.id) + "_" + visualizations_maps.group_name + "_" + str(i + 1) + '.png'
+
+            # Changes based on mode
+            if mode == PrintingMode.HEAPMAP:
+                save_tensor_with_heatmap(input_image, map.detach().numpy(), target_filepath)
+            elif mode == PrintingMode.NORMAL:
+                img = transforms.ToPILImage()(map).convert('LA')
+                img.save(target_filepath)
+
+    # elif issubclass(plugin.__class__, NonGraphVisualizationTechnique) :
+
+    # Load all files for visualizations by name convention
     files = []
     # r=root, d=directories, f = files'
     for r, d, f in os.walk('./static/visualizations'):
         for file in f:
             if file.split('_')[0] == str(node.id) and '_'.join(file.split('_')[1:-1]) == plugin_name:
-                #Remove first dot with 1: cause directory changes
+                # Remove first dot with 1: cause directory changes
                 files.append(os.path.join(r, file).replace(os.sep, '/')[1:])
 
-    #Divide into map_links with format [nx[6x(id,link)]]
+    # Divide into map_links with format [nx[6x(id,link)]]
     map_links = []
-    for i in range(math.ceil(len(files)/6.0)):
+    for i in range(math.ceil(len(files) / 6.0)):
         map_links.append([])
         for j in range(6):
-            index = 6*i+j
+            index = 6 * i + j
             if index < len(files):
-                map_links[i].append((index+1,files[index]))
-
+                map_links[i].append((index + 1, files[index]))
 
     return render(request, 'node_visualization_page.html',
                   context={'current_plugin_name': plugin_name, 'node_id': node.id,

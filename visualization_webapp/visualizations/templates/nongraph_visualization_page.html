@@ -19,37 +19,37 @@
     <span style="font-size:30px;cursor:pointer;" onclick="openNav()">&#9776; open</span>
 
 
-{#    <div class="container">#}
-{##}
-{#        {% for row in links %}#}
-{#            {% for index,link in row %}#}
-{#                <div class="mySlides">#}
-{#                    <div class="numbertext">{{ index }} / {{ links_count }}</div>#}
-{#                    <img src="data:image/png;base64,{{ link }}" style="margin: 0 auto; display:block ; width:60%;">#}
-{#                </div>#}
-{#            {% endfor %}#}
-{#        {% endfor %}#}
-{##}
-{#        <a class="prev" onclick="plusSlides(-1)">&lt;</a>#}
-{#        <a class="next" onclick="plusSlides(1)">&gt;</a>#}
-{##}
-{#        <div class="caption-container">#}
-{#            <p id="caption"></p>#}
-{#        </div>#}
-{##}
-{#        {% for row in links %}#}
-{#            <div class="row">#}
-{#                {% for index,link in row %}#}
-{#                    <div class="column">#}
-{#                        <img class="demo cursor"#}
-{#                             src="data:image/png;base64,{{ link }}"#}
-{#                                     style="width:100%" onclick="currentSlide({{ index }})" alt="">#}
-{#                    </div>#}
-{#                {% endfor %}#}
-{#            </div>#}
-{#        {% endfor %}#}
-{#    </div>#}
-{#</div>#}
+    <div class="container">
+
+        {% for row in links %}
+            {% for index,link in row %}
+                <div class="mySlides">
+                    <div class="numbertext">{{ index }} / {{ links_count }}</div>
+                    <img src="data:image/png;base64,{{ link }}" style="margin: 0 auto; display:block ; width:60%;">
+                </div>
+            {% endfor %}
+        {% endfor %}
+
+        <a class="prev" onclick="plusSlides(-1)">&lt;</a>
+        <a class="next" onclick="plusSlides(1)">&gt;</a>
+
+        <div class="caption-container">
+            <p id="caption"></p>
+        </div>
+
+        {% for row in links %}
+            <div class="row">
+                {% for index,link in row %}
+                    <div class="column">
+                        <img class="demo cursor"
+                             src="data:image/png;base64,{{ link }}"
+                                     style="width:100%" onclick="currentSlide({{ index }})" alt="">
+                    </div>
+                {% endfor %}
+            </div>
+        {% endfor %}
+    </div>
+</div>
 
 
 <script src="../../static/node_visualization.js"></script>

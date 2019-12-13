@@ -14,6 +14,7 @@ from torchvision import transforms
 from visualization_core import GraphExtractor, FunctionNode, GraphVisualizationAttacher, GraphUtils
 from visualization_core.interfaces.VisualizationTechnique import PrintingMode, GraphVisualizationTechnique, \
     NonGraphVisualizationTechnique
+from visualization_core.model.graph_model import NonGraphVisualizationMapsContainer
 from visualization_printing import LinkAttacher, NodeColoringTool, GraphPrinter
 from visualization_printing.maps_printer import save_tensor_as_image, save_tensor_with_heatmap
 from visualization_utils.image_processing import ImageProcessing
@@ -22,6 +23,7 @@ file_lines = []
 parent_node = None
 selected_plugin_names = None
 class_index = None
+non_graph_visualization_maps_container = NonGraphVisualizationMapsContainer()
 
 
 def index(request):
@@ -32,6 +34,7 @@ def selection(request):
     global parent_node
     global selected_plugin_names
     global class_index
+    global non_graph_visualization_maps_container
 
     if request.method == 'POST':
         print("Inside selection view")
@@ -77,14 +80,24 @@ def selection(request):
         selected_plugins = PluginSelector.get_selected_plugins(selected_plugin_names)
 
         for plugin in selected_plugins:
-            # TODO modify for nongrapgh ones
-            GraphVisualizationAttacher.attach_visualizations_to_graph(parent_node, plugin.name,
-                                                                      plugin.get_module_visualizations_list_map(model,
-                                                                                                                image_tensor,
-                                                                                                                convert_class_index_to_one_hot_vector(
-                                                                                                                    y,
-                                                                                                                    class_index)))
-
+            if issubclass(plugin.__class__, GraphVisualizationTechnique):
+                GraphVisualizationAttacher.attach_visualizations_to_graph(parent_node, plugin.name,
+                                                                          plugin.get_module_visualizations_list_map(
+                                                                              model,
+                                                                              image_tensor,
+                                                                              convert_class_index_to_one_hot_vector(
+                                                                                  y,
+                                                                                  class_index)))
+            elif issubclass(plugin.__class__, NonGraphVisualizationTechnique):
+                non_graph_visualization_maps_container.set_visualizations_maps(plugin.name,
+                                                                               plugin.get_additional_visualizations_maps(
+                                                                                   parent_node, plugin.name,
+                                                                                   plugin.get_module_visualizations_list_map(
+                                                                                       model,
+                                                                                       image_tensor,
+                                                                                       convert_class_index_to_one_hot_vector(
+                                                                                           y,
+                                                                                           class_index))))
 
         return redirect('/graph')
 
@@ -96,7 +109,6 @@ def selection(request):
 def graph_visualization_page(request):
     global selected_plugin_names
     non_graph_plugin_names = PluginSelector.get_only_selected_nongraph_plugins_names(selected_plugin_names)
-    non_graph_plugin_names = ["hyphen", "jj"]
     return render(request, 'graph_visualization_page.html', context={"non_graph_plugin_names": non_graph_plugin_names})
 
 
@@ -117,15 +129,13 @@ def node_visualization_page(request, id=0, plugin_name=''):
     input_image = Image.open(open('./static/image.jpg', 'rb'))
 
     if plugin_name == '':
-        plugin_name = selected_plugin_names[0]
+        plugin_name = PluginSelector.get_only_selected_graph_plugins_names(selected_plugin_names)[0]
 
     node = GraphUtils.find_node_by_id(parent_node, id)
 
     # Clear all past visualizations
     for f in os.listdir('./static/visualizations/'):
         os.remove(os.path.join('./static/visualizations/', f))
-
-
 
     # Save all visulizations for given plugin with naming conventions: {node_id}_{plugin_name}_{map_index} in /static/visualizations
     plugin = PluginSelector.get_selected_plugins([plugin_name])[0]
@@ -136,8 +146,6 @@ def node_visualization_page(request, id=0, plugin_name=''):
         for i, map in enumerate(visualizations_maps.get_map_list()):
 
             mode = plugin.get_printing_mode()
-            target_filepath = './static/visualizations/' + str(
-                node.id) + "_" + visualizations_maps.group_name + "_" + str(i + 1) + '.png'
 
             # Changes based on mode
             if mode == PrintingMode.HEAPMAP:
@@ -145,17 +153,12 @@ def node_visualization_page(request, id=0, plugin_name=''):
             elif mode == PrintingMode.NORMAL:
                 img = transforms.ToPILImage()(map).convert('LA')
 
-
-            #Saving to in-memory uri
+            # Saving to in-memory uri
             buffer = io.BytesIO()
             img.save(buffer, format='PNG')
             buffer.seek(0)
             data_uri = base64.b64encode(buffer.read()).decode('ascii')
             images_uris.append(data_uri)
-
-    # elif issubclass(plugin.__class__, NonGraphVisualizationTechnique) :
-
-
 
     # Divide into map_links with format [nx[6x(id,link)]]
     map_links = []
@@ -168,17 +171,58 @@ def node_visualization_page(request, id=0, plugin_name=''):
 
     return render(request, 'node_visualization_page.html',
                   context={'current_plugin_name': plugin_name, 'node_id': node.id,
-                           'plugin_names': PluginSelector.get_only_selected_graph_plugins_names(selected_plugin_names), "links": map_links,
+                           'plugin_names': PluginSelector.get_only_selected_graph_plugins_names(selected_plugin_names),
+                           "links": map_links,
                            "links_count": sum([len(x) for x in map_links]), })
 
 
-def nongraph_visualization_page(request, plugin_name):
+def nongraph_visualization_page(request, plugin_name=''):
     global selected_plugin_names
     global parent_node
+    global non_graph_visualization_maps_container
+
+    input_image = Image.open(open('./static/image.jpg', 'rb'))
+
+    if plugin_name == '':
+        plugin_name = PluginSelector.get_only_selected_nongraph_plugins_names(selected_plugin_names)[0]
+
+    # Save all visulizations for given plugin with naming conventions: {plugin_name}_{map_index} in /static/visualizations
+    plugin = PluginSelector.get_selected_plugins([plugin_name])[0]
+
+    images_uris = []
+    if issubclass(plugin.__class__, NonGraphVisualizationTechnique):
+        for i, map in enumerate(non_graph_visualization_maps_container[plugin_name]):
+            mode = plugin.get_printing_mode()
+
+            # Changes based on mode
+            if mode == PrintingMode.HEAPMAP:
+                img = save_tensor_with_heatmap(input_image, map.detach().numpy(), cmap='jet')
+            elif mode == PrintingMode.NORMAL:
+                img = transforms.ToPILImage()(map).convert('LA')
+
+            # Saving to in-memory uri
+            buffer = io.BytesIO()
+            img.save(buffer, format='PNG')
+            buffer.seek(0)
+            data_uri = base64.b64encode(buffer.read()).decode('ascii')
+            images_uris.append(data_uri)
+
+    # Divide into map_links with format [nx[6x(id,link)]]
+    map_links = []
+    for i in range(math.ceil(len(images_uris) / 6.0)):
+        map_links.append([])
+        for j in range(6):
+            index = 6 * i + j
+            if index < len(images_uris):
+                map_links[i].append((index + 1, images_uris[index]))
 
     return render(request, 'nongraph_visualization_page.html',
                   context={'current_plugin_name': plugin_name,
-                           'plugin_names': PluginSelector.get_only_selected_nongraph_plugins_names(selected_plugin_names), })
+                           'plugin_names': PluginSelector.get_only_selected_nongraph_plugins_names(
+                               selected_plugin_names),
+                           "links": map_links,
+                           "links_count": sum([len(x) for x in map_links]),
+                           })
 
 
 def node_redirect(request, id=0):

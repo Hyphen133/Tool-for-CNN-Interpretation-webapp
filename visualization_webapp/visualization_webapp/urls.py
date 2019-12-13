@@ -24,4 +24,7 @@ urlpatterns = [
     path('visualizations/', include('visualizations.urls')),
     path('node/<id>/<plugin_name>', include('visualizations.urls')),
     path('selection/', include('visualizations.urls')),
+    path('/nongraph/<plugin_name>', include('visualizations.urls')),
+    path('graph/', include('visualizations.urls'))
+
 ]

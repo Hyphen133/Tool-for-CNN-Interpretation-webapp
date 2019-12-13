@@ -85,12 +85,19 @@ def selection(request):
                                                                                                                     y,
                                                                                                                     class_index)))
 
-        # return redirect('/static/output_graph.svg')
-        return render(request, 'graph_visualization_page.html')
+
+        return redirect('/graph')
 
     plugin_names = PluginSelector.get_all_plugin_names()
 
     return render(request, 'selection_page.html', context={'plugin_names': plugin_names})
+
+
+def graph_visualization_page(request):
+    global selected_plugin_names
+    non_graph_plugin_names = PluginSelector.get_only_selected_nongraph_plugins_names(selected_plugin_names)
+    non_graph_plugin_names = ["hyphen", "jj"]
+    return render(request, 'graph_visualization_page.html', context={"non_graph_plugin_names": non_graph_plugin_names})
 
 
 def convert_class_index_to_one_hot_vector(model_output, class_index):
@@ -134,7 +141,7 @@ def node_visualization_page(request, id=0, plugin_name=''):
 
             # Changes based on mode
             if mode == PrintingMode.HEAPMAP:
-                img = save_tensor_with_heatmap(input_image, map.detach().numpy())
+                img = save_tensor_with_heatmap(input_image, map.detach().numpy(), cmap='jet')
             elif mode == PrintingMode.NORMAL:
                 img = transforms.ToPILImage()(map).convert('LA')
 
@@ -161,8 +168,17 @@ def node_visualization_page(request, id=0, plugin_name=''):
 
     return render(request, 'node_visualization_page.html',
                   context={'current_plugin_name': plugin_name, 'node_id': node.id,
-                           'plugin_names': selected_plugin_names, "links": map_links,
+                           'plugin_names': PluginSelector.get_only_selected_graph_plugins_names(selected_plugin_names), "links": map_links,
                            "links_count": sum([len(x) for x in map_links]), })
+
+
+def nongraph_visualization_page(request, plugin_name):
+    global selected_plugin_names
+    global parent_node
+
+    return render(request, 'nongraph_visualization_page.html',
+                  context={'current_plugin_name': plugin_name,
+                           'plugin_names': PluginSelector.get_only_selected_nongraph_plugins_names(selected_plugin_names), })
 
 
 def node_redirect(request, id=0):

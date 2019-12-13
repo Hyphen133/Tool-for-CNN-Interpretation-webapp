@@ -25,7 +25,7 @@
             {% for index,link in row %}
                 <div class="mySlides">
                     <div class="numbertext">{{ index }} / {{ links_count }}</div>
-                    <img src="{{ link }}" style="margin: 0 auto; display:block ; width:60%;">
+                    <img src="data:image/png;base64,{{ link }}" style="margin: 0 auto; display:block ; width:60%;">
                 </div>
             {% endfor %}
         {% endfor %}
@@ -42,7 +42,7 @@
                 {% for index,link in row %}
                     <div class="column">
                         <img class="demo cursor"
-                             src={{ link }}
+                             src="data:image/png;base64,{{ link }}"
                                      style="width:100%" onclick="currentSlide({{ index }})" alt="">
                     </div>
                 {% endfor %}

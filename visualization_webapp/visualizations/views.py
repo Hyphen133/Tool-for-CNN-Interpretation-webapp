@@ -1,3 +1,5 @@
+import base64
+import io
 import os
 import subprocess
 
@@ -122,6 +124,7 @@ def node_visualization_page(request, id=0, plugin_name=''):
     plugin = PluginSelector.get_selected_plugins([plugin_name])[0]
     visualizations_maps = [maps for maps in node.get_visualization_maps() if maps.group_name == plugin_name][0]
 
+    images_uris = []
     if issubclass(plugin.__class__, GraphVisualizationTechnique):
         for i, map in enumerate(visualizations_maps.get_map_list()):
 
@@ -131,30 +134,30 @@ def node_visualization_page(request, id=0, plugin_name=''):
 
             # Changes based on mode
             if mode == PrintingMode.HEAPMAP:
-                save_tensor_with_heatmap(input_image, map.detach().numpy(), target_filepath)
+                img = save_tensor_with_heatmap(input_image, map.detach().numpy())
             elif mode == PrintingMode.NORMAL:
                 img = transforms.ToPILImage()(map).convert('LA')
-                img.save(target_filepath)
+
+
+            #Saving to in-memory uri
+            buffer = io.BytesIO()
+            img.save(buffer, format='PNG')
+            buffer.seek(0)
+            data_uri = base64.b64encode(buffer.read()).decode('ascii')
+            images_uris.append(data_uri)
 
     # elif issubclass(plugin.__class__, NonGraphVisualizationTechnique) :
 
-    # Load all files for visualizations by name convention
-    files = []
-    # r=root, d=directories, f = files'
-    for r, d, f in os.walk('./static/visualizations'):
-        for file in f:
-            if file.split('_')[0] == str(node.id) and '_'.join(file.split('_')[1:-1]) == plugin_name:
-                # Remove first dot with 1: cause directory changes
-                files.append(os.path.join(r, file).replace(os.sep, '/')[1:])
+
 
     # Divide into map_links with format [nx[6x(id,link)]]
     map_links = []
-    for i in range(math.ceil(len(files) / 6.0)):
+    for i in range(math.ceil(len(images_uris) / 6.0)):
         map_links.append([])
         for j in range(6):
             index = 6 * i + j
-            if index < len(files):
-                map_links[i].append((index + 1, files[index]))
+            if index < len(images_uris):
+                map_links[i].append((index + 1, images_uris[index]))
 
     return render(request, 'node_visualization_page.html',
                   context={'current_plugin_name': plugin_name, 'node_id': node.id,

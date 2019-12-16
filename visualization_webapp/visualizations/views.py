@@ -53,6 +53,7 @@ def selection(request):
         #################   Loading model from file
         model_loader = ModelLoader()
         model = model_loader.load_model_from_external_file(file_name)
+        # GraphUtils.deep_freezing(model)
         input_shape = model_loader.load_input_shape_from_external_file(file_name)
         print(model)
 
@@ -91,13 +92,10 @@ def selection(request):
             elif issubclass(plugin.__class__, NonGraphVisualizationTechnique):
                 non_graph_visualization_maps_container.set_visualizations_maps(plugin.name,
                                                                                plugin.get_additional_visualizations_maps(
-                                                                                   parent_node, plugin.name,
-                                                                                   plugin.get_module_visualizations_list_map(
-                                                                                       model,
-                                                                                       image_tensor,
-                                                                                       convert_class_index_to_one_hot_vector(
-                                                                                           y,
-                                                                                           class_index))))
+                                                                                   model, image_tensor,
+                                                                                   convert_class_index_to_one_hot_vector(
+                                                                                       y,
+                                                                                       class_index)))
 
         return redirect('/graph')
 
@@ -191,7 +189,7 @@ def nongraph_visualization_page(request, plugin_name=''):
 
     images_uris = []
     if issubclass(plugin.__class__, NonGraphVisualizationTechnique):
-        for i, map in enumerate(non_graph_visualization_maps_container[plugin_name]):
+        for i, map in enumerate(non_graph_visualization_maps_container.get_visualization_maps(plugin_name)):
             mode = plugin.get_printing_mode()
 
             # Changes based on mode
@@ -227,4 +225,5 @@ def nongraph_visualization_page(request, plugin_name=''):
 
 def node_redirect(request, id=0):
     global selected_plugin_names
-    return node_visualization_page(request, id, selected_plugin_names[0])
+    return node_visualization_page(request, id,
+                                   PluginSelector.get_only_selected_graph_plugins_names(selected_plugin_names)[0])

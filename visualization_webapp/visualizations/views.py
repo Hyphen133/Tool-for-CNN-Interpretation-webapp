@@ -2,7 +2,7 @@ import base64
 import io
 import os
 import subprocess
-
+import numpy as np
 import math
 import torch
 from PIL import Image
@@ -20,6 +20,7 @@ from visualization_core.model.graph_model import NonGraphVisualizationMapsContai
 from visualization_printing import LinkAttacher, NodeColoringTool, GraphPrinter
 from visualization_printing.maps_printer import save_tensor_as_image, save_tensor_with_heatmap
 from visualization_utils.image_processing import ImageProcessing
+from skimage import transform
 
 file_lines = []
 parent_node = None
@@ -281,7 +282,16 @@ def interpretation_out(request):
     test_input = torch.rand(1, input_shape[0], input_shape[1], input_shape[2])
     y = model.forward(test_input)
     cam_map = cam.get_additional_visualizations_maps(model, ImageProcessing.pil_img_to_tensor_of_with_size(img,input_shape).unsqueeze(0),
-                                              convert_class_index_to_one_hot_vector(y, class_index))
+                                              convert_class_index_to_one_hot_vector(y, class_index))[0].detach().numpy()
 
+
+    #Resize and normalize heatmap
+    heat_map_resized = transform.resize(cam_map, (input_shape[1], input_shape[2]))
+    max_value = np.max(heat_map_resized)
+    min_value = np.min(heat_map_resized)
+    normalized_heat_map = (heat_map_resized - min_value) / (max_value - min_value)
+
+
+    heapmap_bounding_boxes = BoundingBoxUtils.get_bounding_boxes_from_heatmap(normalized_heat_map)
 
     return render(request, 'start.html')

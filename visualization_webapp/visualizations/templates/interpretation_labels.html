@@ -5,6 +5,20 @@
     <title>Title</title>
 </head>
 <body>
-<img src="data:image/png;base64,{{ uri }}" alt="">
+<div>
+    <img src="data:image/png;base64,{{ img_uri }}" alt="">
+    <img src="data:image/png;base64,{{ seg_uri }}" alt="">
+</div>
+
+<form method="post" action="/interpretation/out" enctype="multipart/form-data">
+    {% for color in colors %}
+        <div>
+            <label style="color: {{ color }}; font-size:20px;">&#9632;</label>
+            <input name={{ color }} type="text">
+        </div>
+    {% endfor %}
+    <input type="submit">
+</form>
+
 </body>
 </html>

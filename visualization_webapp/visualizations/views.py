@@ -8,6 +8,8 @@ import torch
 from PIL import Image
 from django.core.files.storage import default_storage
 from django.shortcuts import render, redirect
+from interpretation.bounding_box_utils import BoundingBoxUtils
+from plugins.cam.cam_plugin import ClassActivationMapPlugin
 from plugins_management import get_plugin_repository, PluginSelector
 from torch_model_loading import ModelLoader
 from torchvision import transforms
@@ -24,7 +26,8 @@ parent_node = None
 selected_plugin_names = None
 class_index = None
 non_graph_visualization_maps_container = NonGraphVisualizationMapsContainer()
-
+model = None
+input_shape = None
 
 def index(request):
     return render(request, 'start.html', context={})
@@ -35,6 +38,9 @@ def selection(request):
     global selected_plugin_names
     global class_index
     global non_graph_visualization_maps_container
+    global segmentation_image_colors
+    global model
+    global input_shape
 
     if request.method == 'POST':
         print("Inside selection view")
@@ -55,7 +61,6 @@ def selection(request):
         model = model_loader.load_model_from_external_file(file_name)
         # GraphUtils.deep_freezing(model)
         input_shape = model_loader.load_input_shape_from_external_file(file_name)
-        print(model)
 
         #################   Converting model to graph
         test_input = torch.rand(1, input_shape[0], input_shape[1], input_shape[2])
@@ -231,18 +236,52 @@ def node_redirect(request, id=0):
 
 def interpretation_page(request):
     if request.method == 'POST':
-        print("Inside selection view")
+        global segmentation_image_colors
         uploaded_image = request.FILES['image']
         img = Image.open(uploaded_image)
-        # input_image = Image.open(open('./static/segmented_image.jpg', 'rb'))
+        img.save('./static/seg_image.bmp', format='BMP')
+
         buffer = io.BytesIO()
         img.save(buffer, format='PNG')
         buffer.seek(0)
+        segmentation_data_uri = base64.b64encode(buffer.read()).decode('ascii')
+
+        input_image = Image.open(open('./static/image.jpg', 'rb'))
+
+        buffer = io.BytesIO()
+        input_image.save(buffer, format='PNG')
+        buffer.seek(0)
         data_uri = base64.b64encode(buffer.read()).decode('ascii')
 
+        # Extracting colors as strings
+        segmentation_image_colors = ['#%02x%02x%02x' % c for c in ImageProcessing.get_list_off_all_colors(img)]
 
         return render(request, 'interpretation_labels.html',
-                  context={"uri": data_uri, "colors": []})
+                      context={"img_uri": data_uri, "seg_uri": segmentation_data_uri,
+                               "colors": segmentation_image_colors})
 
     return render(request, 'interpretation.html',
                   context={})
+
+
+def interpretation_out(request):
+    global segmentation_image_colors
+    global model
+    global input_shape
+    global class_index
+
+    color_label_map = request.POST
+    segmentation_image = Image.open('./static/seg_image.bmp')
+    img = Image.open('./static/image.jpg')
+
+    boxes_map = BoundingBoxUtils.get_bounding_boxes_from_image(segmentation_image)
+    pixel_rect_map = {'#%02x%02x%02x' % pix: boxes_map[pix] for pix in boxes_map.keys()}
+
+    cam = ClassActivationMapPlugin()
+    test_input = torch.rand(1, input_shape[0], input_shape[1], input_shape[2])
+    y = model.forward(test_input)
+    cam_map = cam.get_additional_visualizations_maps(model, ImageProcessing.pil_img_to_tensor_of_with_size(img,input_shape).unsqueeze(0),
+                                              convert_class_index_to_one_hot_vector(y, class_index))
+
+
+    return render(request, 'start.html')

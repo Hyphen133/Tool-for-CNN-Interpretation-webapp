@@ -10,5 +10,6 @@ urlpatterns = [
     path('nongraph/<plugin_name>', views.nongraph_visualization_page, name='nongraph'),
     path('graph/', views.graph_visualization_page, name='graph'),
     path('interpretation/', views.interpretation_page, name='interpretation'),
+    path('interpretation/out', views.interpretation_out, name='interpretation'),
 
 ]

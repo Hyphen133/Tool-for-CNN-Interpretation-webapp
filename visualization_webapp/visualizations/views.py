@@ -227,3 +227,22 @@ def node_redirect(request, id=0):
     global selected_plugin_names
     return node_visualization_page(request, id,
                                    PluginSelector.get_only_selected_graph_plugins_names(selected_plugin_names)[0])
+
+
+def interpretation_page(request):
+    if request.method == 'POST':
+        print("Inside selection view")
+        uploaded_image = request.FILES['image']
+        img = Image.open(uploaded_image)
+        # input_image = Image.open(open('./static/segmented_image.jpg', 'rb'))
+        buffer = io.BytesIO()
+        img.save(buffer, format='PNG')
+        buffer.seek(0)
+        data_uri = base64.b64encode(buffer.read()).decode('ascii')
+
+
+        return render(request, 'interpretation_labels.html',
+                  context={"uri": data_uri, "colors": []})
+
+    return render(request, 'interpretation.html',
+                  context={})

@@ -9,5 +9,6 @@ urlpatterns = [
     path('node/<id>/<plugin_name>', views.node_visualization_page, name='node'),
     path('nongraph/<plugin_name>', views.nongraph_visualization_page, name='nongraph'),
     path('graph/', views.graph_visualization_page, name='graph'),
+    path('interpretation/', views.interpretation_page, name='interpretation'),
 
 ]

@@ -30,6 +30,7 @@ non_graph_visualization_maps_container = NonGraphVisualizationMapsContainer()
 model = None
 input_shape = None
 
+
 def index(request):
     return render(request, 'start.html', context={})
 
@@ -281,37 +282,39 @@ def interpretation_out(request):
     cam = ClassActivationMapPlugin()
     test_input = torch.rand(1, input_shape[0], input_shape[1], input_shape[2])
     y = model.forward(test_input)
-    cam_map = cam.get_additional_visualizations_maps(model, ImageProcessing.pil_img_to_tensor_of_with_size(img,input_shape).unsqueeze(0),
-                                              convert_class_index_to_one_hot_vector(y, class_index))[0].detach().numpy()
+    cam_map = cam.get_additional_visualizations_maps(model, ImageProcessing.pil_img_to_tensor_of_with_size(img,
+                                                                                                           input_shape).unsqueeze(
+        0),
+                                                     convert_class_index_to_one_hot_vector(y, class_index))[
+        0].detach().numpy()
 
-
-    #Resize and normalize heatmap
+    # Resize and normalize heatmap
     heat_map_resized = transform.resize(cam_map, (input_shape[1], input_shape[2]))
     max_value = np.max(heat_map_resized)
     min_value = np.min(heat_map_resized)
     normalized_heat_map = (heat_map_resized - min_value) / (max_value - min_value)
 
-    #!! Heapmap boxes list
+    # !! Heapmap boxes list
     heapmap_bounding_boxes = BoundingBoxUtils.get_bounding_boxes_from_heatmap(normalized_heat_map)
 
-    #Draw rectanges
+    # Draw rectanges
     draw = ImageDraw.Draw(img)
 
     for bb in color_rect_map.values():
         x1, x2, y1, y2 = bb
-        draw.rectangle(((x1,y1),(x2,y2)), outline="orange")
+        draw.rectangle(((x1, y1), (x2, y2)), outline="orange")
     for bb in heapmap_bounding_boxes:
         x1, x2, y1, y2 = bb
-        draw.rectangle(((x1,y1),(x2,y2)), outline="red")
+        draw.rectangle(((x1, y1), (x2, y2)), outline="red")
 
     buffer = io.BytesIO()
     img.save(buffer, format='PNG')
     buffer.seek(0)
     data_uri = base64.b64encode(buffer.read()).decode('ascii')
 
-    #IoU check
+    # IoU check
 
-    #rect : (label,iou)
+    # rect : (label,iou)
     box_to_label_with_iou_map = {}
     for box in heapmap_bounding_boxes:
         best_label = None
@@ -322,6 +325,15 @@ def interpretation_out(request):
                 best_iou = iou
                 best_label = color_label_map[color]
 
-        box_to_label_with_iou_map[box] = (best_label,best_iou)
+        box_to_label_with_iou_map[box] = (best_label, best_iou)
 
-    return render(request, 'interpretation_out.html', context={"img_uri":data_uri, "summary":""})
+    # Message
+    summary = "Visualizations in order of top match: \n"
+
+    sorted_label_iou = sorted(box_to_label_with_iou_map.values(), key=lambda x: x[1], reverse=True)
+
+    for i, tuple_label_iou in enumerate(sorted_label_iou):
+        label, iou = tuple_label_iou
+        summary += str(i) + "\t" + label + "\t" + "[" + str("%.4f" % iou) + "]\n"
+
+    return render(request, 'interpretation_out.html', context={"img_uri": data_uri, "summary": summary})

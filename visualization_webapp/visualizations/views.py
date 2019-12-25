@@ -5,7 +5,7 @@ import subprocess
 import numpy as np
 import math
 import torch
-from PIL import Image
+from PIL import Image, ImageDraw
 from django.core.files.storage import default_storage
 from django.shortcuts import render, redirect
 from interpretation.bounding_box_utils import BoundingBoxUtils
@@ -275,8 +275,8 @@ def interpretation_out(request):
     segmentation_image = Image.open('./static/seg_image.bmp')
     img = Image.open('./static/image.jpg')
 
-    boxes_map = BoundingBoxUtils.get_bounding_boxes_from_image(segmentation_image)
-    pixel_rect_map = {'#%02x%02x%02x' % pix: boxes_map[pix] for pix in boxes_map.keys()}
+    # !! string Pixel -> box map
+    color_rect_map = BoundingBoxUtils.get_bounding_boxes_from_image(segmentation_image)
 
     cam = ClassActivationMapPlugin()
     test_input = torch.rand(1, input_shape[0], input_shape[1], input_shape[2])
@@ -291,7 +291,37 @@ def interpretation_out(request):
     min_value = np.min(heat_map_resized)
     normalized_heat_map = (heat_map_resized - min_value) / (max_value - min_value)
 
-
+    #!! Heapmap boxes list
     heapmap_bounding_boxes = BoundingBoxUtils.get_bounding_boxes_from_heatmap(normalized_heat_map)
 
-    return render(request, 'start.html')
+    #Draw rectanges
+    draw = ImageDraw.Draw(img)
+
+    for bb in color_rect_map.values():
+        x1, x2, y1, y2 = bb
+        draw.rectangle(((x1,y1),(x2,y2)), outline="orange")
+    for bb in heapmap_bounding_boxes:
+        x1, x2, y1, y2 = bb
+        draw.rectangle(((x1,y1),(x2,y2)), outline="red")
+
+    buffer = io.BytesIO()
+    img.save(buffer, format='PNG')
+    buffer.seek(0)
+    data_uri = base64.b64encode(buffer.read()).decode('ascii')
+
+    #IoU check
+
+    #rect : (label,iou)
+    box_to_label_with_iou_map = {}
+    for box in heapmap_bounding_boxes:
+        best_label = None
+        best_iou = -1
+        for color in color_rect_map.keys():
+            iou = BoundingBoxUtils.intersection_over_union(color_rect_map[color], box)
+            if iou > best_iou:
+                best_iou = iou
+                best_label = color_label_map[color]
+
+        box_to_label_with_iou_map[box] = (best_label,best_iou)
+
+    return render(request, 'interpretation_out.html', context={"img_uri":data_uri, "summary":""})
